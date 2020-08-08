@@ -1,0 +1,184 @@
+---
+title: "Analyzing President Barack Obama's Inaugural speeches"
+author: "Symon Kimitei - Text wrangling in Text Mining"
+date: "8/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+# Load the necessary libraries
+library(tm)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(syuzhet)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(reshape2)
+library(dplyr)
+library(plotly)
+```
+
+
+
+```{r}
+#Read President George Walker Bush's Inaugural speeches
+BOtext<- readLines('C:/Users/skimitei/Desktop/r_code/BO.txt')
+
+# Load the data speech as a corpus
+BO <- Corpus(VectorSource(BOtext))
+
+```
+
+
+
+```{r}
+#############Text transformation - Text wrangling in Text Mining#############
+
+#----------------------------------------------------------------------------
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+BO<- tm_map(BO, toSpace, "/")
+BO<- tm_map(BO, toSpace, "@")
+
+# Convert the text to lower case
+BO <- tm_map(BO, content_transformer(tolower))
+
+# Remove numbers
+BO <- tm_map(BO, removeNumbers)
+
+# Remove english common stopwords
+BO <- tm_map(BO, removeWords, stopwords("english"))
+
+# Remove your own stop word
+# specify your stopwords as a character vector
+BO<- tm_map(BO, removeWords, c("blabla1", "blabla2")) 
+
+# Remove punctuations
+BO <- tm_map(BO, removePunctuation)
+
+# Eliminate extra white spaces
+BO <- tm_map(BO, stripWhitespace)
+
+# Text stemming
+# docs <- tm_map(docs, stemDocument)
+BO <- tm_map(BO, toSpace, "\\|")
+
+```
+
+
+```{r}
+# Build a term-document matrix of President George Bush Jr's inaugural speeches
+# and display the top ten most used words
+dtm <- TermDocumentMatrix(BO)
+#find associations with words by correlation with the findAssocs() function
+findAssocs(dtm, c("country" , "american","nation", "freedom","love"), corlimit=0.60) # specifying a correlation limit of 0.60
+# convert dtm into a matrix
+dtm<-as.matrix(dtm)
+#dtm[1:10,1:10]  
+w <- sort(rowSums(dtm),decreasing=TRUE)
+BO <- data.frame(word = names(w),freq=w)
+head(BO, 10)
+rownames(BO)<-NULL
+head(BO, 10)
+
+
+dtm<-subset(w,w>=5)
+v<-dtm
+```
+
+
+```{r}
+#Create a barplot of the top words as used by President Walker Bush in his inaugural - Version I
+barplot(dtm,las=2,col=rainbow(100))
+```
+
+
+```{r}
+# Print the ten most frequent word used in the addresses
+BO <- data.frame(word = names(v),freq=v)
+head(BO, 10)
+rownames(BO)<-NULL
+head(BO, 10)
+```
+
+
+
+
+
+```{r}
+#Create a barplot of the top words as used by President Walker Bush in his inaugural  - Version II
+barplot(BO[1:50,]$freq, las = 2, names.arg = BO[1:50,]$word,
+        col ="lightblue", main ="President Barack Obama's Most frequent inauguration words",
+        ylab = "Word frequencies")
+```
+
+
+```{r}
+# Sentimental Analysis
+s<-get_nrc_sentiment(BOtext)
+#View the sentimental analysis of the first 6 paragraphs
+head(s)
+#View the third paragraph
+BOtext[3]
+#Check the sentimental analysis of some words in the third paragraph
+get_nrc_sentiment("grateful")
+get_nrc_sentiment("generosity")
+
+#View the third paragraph
+BOtext[9]
+#Check the sentimental analysis of some words in the third paragraph
+get_nrc_sentiment("lower")
+get_nrc_sentiment("decline")
+
+barplot(colSums(s),las=2,col=rainbow(10),
+        ylab='count',main="President Barak Obama's.inaugural sentimental plot")
+```
+
+
+```{r}
+# Create a word cloud of President Barack Obama's inaugural speeches
+# print(BO)
+set.seed(1234)
+library(wordcloud2)
+wordcloud(words = BO$word, freq = BO$freq, min.freq = 2,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+
+```{r}
+# Get sentiments using the four different lexicons
+syuzhet <- get_sentiment(BOtext, method="syuzhet")
+bing <- get_sentiment(BOtext, method="bing")
+afinn <- get_sentiment(BOtext, method="afinn")
+nrc <- get_sentiment(BOtext, method="nrc")
+sentiments <- data.frame(syuzhet, bing, afinn, nrc)
+```
+
+
+```{r}
+# get the emotions using the NRC dictionary
+emotions <- get_nrc_sentiment(BOtext)
+emo_bar = colSums(emotions)
+emo_sum = data.frame(count=emo_bar, emotion=names(emo_bar))
+emo_sum$emotion = factor(emo_sum$emotion, levels=emo_sum$emotion[order(emo_sum$count, decreasing = TRUE)])
+```
+
+
+```{r}
+# plot the different sentiments from different methods
+plot_ly(sentiments, x=~emotions, y=~syuzhet, type="scatter", mode="jitter", name="syuzhet") %>%
+  add_trace(y=~bing, mode="lines", name="bing") %>%
+  add_trace(y=~afinn, mode="lines", name="afinn") %>%
+  add_trace(y=~nrc, mode="lines", name="nrc") %>%
+  layout(title="President Barack Obama's inaugural speech sentiment",
+         yaxis=list(title="score"), xaxis=list(title="Emotions"))
+```
+
