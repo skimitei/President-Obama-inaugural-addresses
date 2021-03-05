@@ -29,7 +29,7 @@ library(plotly)
 
 
 ```{r}
-#Read President George Walker Bush's Inaugural speeches
+#Read President Barack Obama's Inaugural speeches
 BOtext<- readLines('C:/Users/skimitei/Desktop/r_code/BO.txt')
 
 # Load the data speech as a corpus
